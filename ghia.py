@@ -6,6 +6,7 @@ import requests
 import re
 
 
+# functions for validating params
 def is_empty_file(value):
     if (os.stat(value).st_size == 0):
         raise click.BadParameter('incorrect configuration format')
@@ -54,6 +55,7 @@ def validate_reposlug(ctx, param, value):
 def run(strategy, dry, auth, rules, reposlug):
     """CLI tool for automatic issue assigning of GitHub issues"""
 
+    # setup session
     session = requests.Session()
     session.headers = {'User-Agent': 'Python'}
     token = auth['github']['token']
@@ -64,12 +66,15 @@ def run(strategy, dry, auth, rules, reposlug):
 
     issues = get_issues(reposlug, session)
 
-    for i in range(len(issues)):
-        click.echo('-> {} ({})'.format(click.style(reposlug + '#' + str(issues[i].get('number')), bold=True, fg='white'), issues[i].get('html_url')))
-        assign_issue(issues[i], rules, strategy, dry, session, reposlug)
+    # process all issues
+    for issue in issues:
+        click.echo('-> {} ({})'.format(click.style(reposlug + '#' + str(issue.get('number')), bold=True, fg='white'), issue.get('html_url')))
+        assign_issue(issue, rules, strategy, dry, session, reposlug)
     
 
 def print_users(strategy, new_users, old_users):
+    """Print old and new assignees depending on chosen strategy"""
+
     all_users = list(set([*new_users, *old_users]))
     
     if (strategy == 'append'):
@@ -109,55 +114,47 @@ def print_users(strategy, new_users, old_users):
                 continue
         return
 
+
 def append_users(issue, dry, session, new_users, old_users, reposlug):
-    if not dry:
-        if (len(new_users) > 0):
-            r = session.patch(issue.get('url'), json={"assignees": [*old_users, *new_users]})
-            if not r.ok:
-                click.echo('   {}: Could not update issue {}#{}'.format(click.style('ERROR', fg='red'), reposlug, issue.get('number')), file=sys.stderr)
-            else:
-                print_users('append', new_users, old_users)
-        else:
-            print_users('append', new_users, old_users)
+    """Add new assignees to the old ones"""
+
+    if not dry and len(new_users) > 0 and not (session.patch(issue.get('url'), json={"assignees": [*old_users, *new_users]})).ok:
+        click.echo('   {}: Could not update issue {}#{}'.format(click.style('ERROR', fg='red'), reposlug, issue.get('number')), file=sys.stderr)
     else:
         print_users('append', new_users, old_users)
 
+
 def set_users(issue, dry, session, new_users, old_users, reposlug):
+    """Sets new assignees if the assignees are empty"""
+
     if (len(old_users) > 0):
         print_users('set', [], old_users)
         return
 
-    if not dry:
-        if (len(new_users) > 0):
-            r = session.patch(issue.get('url'), json={"assignees": [*new_users]})
-            if not r.ok:
-                click.echo('   {}: Could not update issue {}#{}'.format(click.style('ERROR', fg='red'), reposlug, issue.get('number')), file=sys.stderr)
-            else:
-                print_users('set', new_users, [])
+    if not dry and len(new_users) > 0 and not (session.patch(issue.get('url'), json={"assignees": [*new_users]})).ok:
+        click.echo('   {}: Could not update issue {}#{}'.format(click.style('ERROR', fg='red'), reposlug, issue.get('number')), file=sys.stderr)
     else:
         print_users('set', new_users, [])
     
-def change_users(issue, dry, session, new_users, old_users, reposlug):
 
-    if not dry:
-        if (new_users != old_users):
-            r = session.patch(issue.get('url'), json={"assignees": [*new_users]})
-            if not r.ok:
-                click.echo('   {}: Could not update issue {}#{}'.format(click.style('ERROR', fg='red'), reposlug, issue.get('number')), file=sys.stderr)
-            else:
-                print_users('change', new_users, old_users)
-        else:
-            print_users('change', new_users, old_users)
+def change_users(issue, dry, session, new_users, old_users, reposlug):
+    """Changes all assignees to the new ones"""
+
+    if not dry and new_users != old_users and not (session.patch(issue.get('url'), json={"assignees": [*new_users]})).ok:
+        click.echo('   {}: Could not update issue {}#{}'.format(click.style('ERROR', fg='red'), reposlug, issue.get('number')), file=sys.stderr)
     else:
         print_users('change', new_users, old_users)
 
+
 def assign_issue(issue, rules, strategy, dry, session, reposlug):
+    """Take issue and sets assignees depending on chosen strategy"""
 
     new_users = []
     old_users = []
     for i in issue.get('assignees'):
         old_users.append(i['login'])
 
+    # parsing rules from config file
     for user in rules['patterns']:
         for rule in rules['patterns'][user].split('\n'):
             if (rule.split(':', 1)[0] == 'any'):
@@ -191,12 +188,11 @@ def assign_issue(issue, rules, strategy, dry, session, reposlug):
                     if re.search(rule.split(':', 1)[-1].lower(), issue.get('body').lower()):
                         new_users.append(user)
                             
+    # changing assignees
     if (strategy == 'change'):
         change_users(issue, dry, session, new_users, old_users, reposlug)
-
     if (strategy == 'set'):
         set_users(issue, dry, session, new_users, old_users, reposlug)
-
     if (strategy == 'append'):
         append_users(issue, dry, session, new_users, old_users, reposlug)
         
@@ -204,6 +200,7 @@ def assign_issue(issue, rules, strategy, dry, session, reposlug):
     for i in issue.get('assignees'):
         users.append(i['login'])
 
+    # setting labels if needed
     if (len(users) == 0):
         if 'fallback' in rules:
             new_labels = []
@@ -214,7 +211,6 @@ def assign_issue(issue, rules, strategy, dry, session, reposlug):
             if (issue.get('labels')):
                 for label in issue.get('labels'):
                     old_labels.append(label['name'])
-
 
             if not dry:
                 r = session.patch(issue.get('url'), json={"labels":[*new_labels, *old_labels]})
@@ -246,10 +242,9 @@ def assign_issue(issue, rules, strategy, dry, session, reposlug):
                         click.echo('   {}: added label "{}"'.format(click.style('FALLBACK', bold=True, fg='yellow'), label))
 
 
-
-    
-
 def get_issues(reposlug, session):
+    """Download issues from reposlug"""
+
     owner, repository = reposlug.split('/')
     
     r = session.get('https://api.github.com/repos/{}/{}'.format(owner, repository))
@@ -258,7 +253,6 @@ def get_issues(reposlug, session):
         click.echo('{}: Could not list issues for repository {}'.format(click.style('ERROR', fg='red'), reposlug), file=sys.stderr)
         sys.exit(10)
     
-
     number_of_issues = r.json()['open_issues_count']
     issues = []
     next = 'https://api.github.com/repos/{}/{}/issues'.format(owner, repository)
@@ -278,9 +272,6 @@ def get_issues(reposlug, session):
         
     return issues
     
-    
-
-
 
 if __name__ == '__main__':
     run()
