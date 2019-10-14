@@ -246,30 +246,22 @@ def get_issues(reposlug, session):
     """Download issues from reposlug"""
 
     owner, repository = reposlug.split('/')
-    
-    r = session.get('https://api.github.com/repos/{}/{}'.format(owner, repository))
+    r = session.get('https://api.github.com/repos/{}/{}/issues'.format(owner, repository))
 
     if not r.ok:
         click.echo('{}: Could not list issues for repository {}'.format(click.style('ERROR', fg='red'), reposlug), file=sys.stderr)
         sys.exit(10)
-    
-    number_of_issues = r.json()['open_issues_count']
-    issues = []
-    next = 'https://api.github.com/repos/{}/{}/issues'.format(owner, repository)
 
-    while(True):
+    issues = r.json()
+    
+    while(r.links.get('next')):
+        next = r.links["next"]["url"]
         r = session.get(next)
+        issues += r.json()
         if not r.ok:
             click.echo('{}: Could not list issues for repository {}'.format(click.style('ERROR', fg='red'), reposlug), file=sys.stderr)
             sys.exit(10)
 
-        issues += r.json()
-        number_of_issues -= len(r.json())
-
-        if (number_of_issues <= 0):
-            break
-        next = r.links["next"]["url"]
-        
     return issues
     
 
