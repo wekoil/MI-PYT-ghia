@@ -4,6 +4,12 @@ import configparser
 import sys
 import requests
 import re
+from flask import Flask, render_template, jsonify, request, abort
+import hashlib
+import hmac
+import json
+
+app = Flask(__name__)
 
 
 # functions for validating params
@@ -241,6 +247,8 @@ def assign_issue(issue, rules, strategy, dry, session, reposlug):
                     else:
                         click.echo('   {}: added label "{}"'.format(click.style('FALLBACK', bold=True, fg='yellow'), label))
 
+##############################################################################################
+    # Flask webserver below
 
 def get_issues(reposlug, session):
     """Download issues from reposlug"""
@@ -264,6 +272,82 @@ def get_issues(reposlug, session):
 
     return issues
     
+def load_config_files():
+    try:
+        conf_files = os.environ['GHIA_CONFIG'].split(':', 1)
+    except:
+        try:
+            conf_files = [os.environ['GHIA_CONFIG']]
+        except KeyError:
+            raise RuntimeError('You must set GHIA_CONFIG environ var')
+    return conf_files
+    
+def get_rules_from_config(value):
+    config = configparser.ConfigParser()
+    config.optionxform = str
+    for fil in load_config_files():
+        with open(fil) as f:
+            config.read_file(f)
+        try:
+            if value in config:
+                return config[value]
+        except:
+            pass
+    return None
+
+# def get_user_by_token():
+#     config = configparser.ConfigParser()
+#     config.optionxform = str
+#     for fil in load_config_files():
+#         with open(fil) as f:
+#             config.read_file(f)
+#         try:
+#             token = config['github']['token']
+#             session = requests.Session()
+#             session.headers = {'User-Agent': 'Python'}
+#             def token_auth(req):
+#                 req.headers['Authorization'] = f'token {token}'
+#                 return req
+
+#             session.auth = token_auth
+#             r = session.get('https://api.github.com/user')
+#             return r.json().get('login')
+#         except:
+#             pass
+#     return None
+
+# def verify_signature(payload):
+#     header_signature = payload.get('X-Hub-Signature')
+#     sha_name, signature = header_signature.split('=')
+
+
+
+
+#     signature = hmac.new(GITHUB_TOKEN, payload, hashlib.sha1).hexdigest()
+
+#     if hmac.compare_digest(signature, headers['X-Hub-Signature'].split('=')[1]):
+#         payload_object = json.loads(payload)
+#         return True
+#     else:
+#         return False
+
+@app.route('/', methods=['POST'])
+def webhook():
+    if request.method == 'POST':
+        print(request.json)
+        print(request.headers)
+        # print(verify_signature(request.headers))
+        return '', 200
+    else:
+        abort(400)
+
+@app.route('/')
+def index():
+    name = get_user_by_token()
+    paterns = get_rules_from_config('patterns')
+    fallback = get_rules_from_config('fallback')
+    return render_template('index.html', name=name, rules=paterns, fallback=fallback)
+
 
 if __name__ == '__main__':
     run()
