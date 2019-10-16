@@ -272,9 +272,10 @@ def get_issues(reposlug, session):
 
     return issues
     
+
 def load_config_files():
     try:
-        conf_files = os.environ['GHIA_CONFIG'].split(':', 1)
+        conf_files = os.environ['GHIA_CONFIG'].split(':')
     except:
         try:
             conf_files = [os.environ['GHIA_CONFIG']]
@@ -282,61 +283,70 @@ def load_config_files():
             raise RuntimeError('You must set GHIA_CONFIG environ var')
     return conf_files
     
+
 def get_rules_from_config(value):
     config = configparser.ConfigParser()
     config.optionxform = str
     for fil in load_config_files():
-        with open(fil) as f:
-            config.read_file(f)
         try:
-            if value in config:
-                return config[value]
+            with open(fil) as f:
+                config.read_file(f)
+            
+                if value in config:
+                    return config[value]
         except:
             pass
     return None
+
 
 def get_user_by_token():
     config = configparser.ConfigParser()
     config.optionxform = str
     for fil in load_config_files():
-        with open(fil) as f:
-            config.read_file(f)
         try:
-            token = config['github']['token']
-            session = requests.Session()
-            session.headers = {'User-Agent': 'Python'}
-            def token_auth(req):
-                req.headers['Authorization'] = f'token {token}'
-                return req
+            with open(fil) as f:
+                config.read_file(f)
 
-            session.auth = token_auth
-            r = session.get('https://api.github.com/user')
-            return r.json().get('login')
+                token = config['github']['token']
+                session = requests.Session()
+                session.headers = {'User-Agent': 'Python'}
+                def token_auth(req):
+                    req.headers['Authorization'] = f'token {token}'
+                    return req
+
+                session.auth = token_auth
+                r = session.get('https://api.github.com/user')
+                return r.json().get('login')
         except:
             pass
     return None
 
-def verify_signature(payload):
-    header_signature = payload.get('X-Hub-Signature')
-    sha_name, signature = header_signature.split('=')
 
-
-
-
-    signature = hmac.new(GITHUB_TOKEN, payload, hashlib.sha1).hexdigest()
-
-    if hmac.compare_digest(signature, headers['X-Hub-Signature'].split('=')[1]):
-        payload_object = json.loads(payload)
+def verify_signature(req):
+    secret = get_rules_from_config('github').get('secret')
+    if secret == None:
         return True
-    else:
+
+    header_signature = req.headers.get('X-Hub-Signature')
+    if header_signature is None:
         return False
+
+    sha_name, signature = header_signature.split('=')
+    if sha_name != 'sha1':
+        return False
+
+    
+    mac = hmac.new(bytes(secret, encoding='ascii'), msg=req.data, digestmod='sha1').hexdigest()
+    if not str(mac) == str(signature):
+        return False
+    return True
+
 
 @app.route('/', methods=['POST'])
 def webhook():
     if request.method == 'POST':
-        print(request.json)
-        print(request.headers)
-        # print(verify_signature(request.headers))
+        if not verify_signature(request):
+            return 'Invalid signature!', 400
         return '', 200
     else:
         abort(400)
