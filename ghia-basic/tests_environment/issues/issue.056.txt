@@ -1,3 +1,0 @@
-I18N support
-
-We need to add I18N support for translations and localizations.
