@@ -247,8 +247,6 @@ def assign_issue(issue, rules, strategy, dry, session, reposlug):
                     else:
                         click.echo('   {}: added label "{}"'.format(click.style('FALLBACK', bold=True, fg='yellow'), label))
 
-##############################################################################################
-    # Flask webserver below
 
 def get_issues(reposlug, session):
     """Download issues from reposlug"""
@@ -272,6 +270,8 @@ def get_issues(reposlug, session):
 
     return issues
     
+##############################################################################################
+    # Flask webserver below
 
 def load_config_files():
     try:
@@ -284,41 +284,49 @@ def load_config_files():
     return conf_files
     
 
-def get_rules_from_config(value):
+def get_rules_from_config(value = None):
     config = configparser.ConfigParser()
     config.optionxform = str
     for fil in load_config_files():
         try:
             with open(fil) as f:
                 config.read_file(f)
-            
-                if value in config:
+
+                if value != None and value in config:
                     return config[value]
+                if value == None and 'patterns' in config:
+                    return config
+        except:
+            pass
+    return None
+
+def get_token_from_config():
+    config = configparser.ConfigParser()
+    config.optionxform = str
+    for fil in load_config_files():
+        try:
+            with open(fil) as f:
+                config.read_file(f)
+
+                return config['github']['token']
         except:
             pass
     return None
 
 
 def get_user_by_token():
-    config = configparser.ConfigParser()
-    config.optionxform = str
-    for fil in load_config_files():
-        try:
-            with open(fil) as f:
-                config.read_file(f)
+    token = get_token_from_config()
+    if token != None:
+        session = requests.Session()
+        session.headers = {'User-Agent': 'Python'}
+        def token_auth(req):
+            req.headers['Authorization'] = f'token {token}'
+            return req
 
-                token = config['github']['token']
-                session = requests.Session()
-                session.headers = {'User-Agent': 'Python'}
-                def token_auth(req):
-                    req.headers['Authorization'] = f'token {token}'
-                    return req
+        session.auth = token_auth
+        r = session.get('https://api.github.com/user')
+        return r.json().get('login')
 
-                session.auth = token_auth
-                r = session.get('https://api.github.com/user')
-                return r.json().get('login')
-        except:
-            pass
     return None
 
 
@@ -335,8 +343,8 @@ def verify_signature(req):
     if sha_name != 'sha1':
         return False
 
-    
     mac = hmac.new(bytes(secret, encoding='ascii'), msg=req.data, digestmod='sha1').hexdigest()
+    print(mac)
     if not str(mac) == str(signature):
         return False
     return True
@@ -344,9 +352,37 @@ def verify_signature(req):
 
 @app.route('/', methods=['POST'])
 def webhook():
-    if request.method == 'POST':
+    if request.method == 'POST' and ( request.headers.get('X-GitHub-Event') == 'ping' or request.headers.get('X-GitHub-Event') == 'issues' ):
         if not verify_signature(request):
             return 'Invalid signature!', 400
+        if request.headers.get('X-GitHub-Event') == 'issues':
+            available_actions = ['opened', 'edited', 'transferred', 'reopened', 'assigned', 'unassigned', 'labeled', 'unlabeled']
+            if request.json.get('action') in available_actions:
+                session = requests.Session()
+                session.headers = {'User-Agent': 'Python'}
+
+                token = get_token_from_config()
+                def token_auth(req):
+                    req.headers['Authorization'] = f'token {token}'
+                    return req
+                session.auth = token_auth
+                
+                rules = get_rules_from_config()
+
+                reposlug = request.json.get('repository').get('full_name')
+                issue_number = request.json.get('issue').get('number')
+                issue_url = request.json.get('issue').get('url')
+
+                click.echo('-> {} ({})'.format(click.style(reposlug + '#' + str(issue_number), bold=True, fg='white'), issue_url))
+
+                r = session.get(issue_url)
+
+                if not r.ok:
+                    click.echo('{}: Could not list issues for repository {}'.format(click.style('ERROR', fg='red'), reposlug), file=sys.stderr)
+                    sys.exit(10)
+
+                assign_issue(r.json(), rules, 'append', '', session, reposlug)
+
         return '', 200
     else:
         abort(400)
