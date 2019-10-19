@@ -279,6 +279,7 @@ def get_issues(reposlug, session):
     # Flask webserver below
 
 def load_config_files():
+    """Loads config files from env var"""
     try:
         conf_files = os.environ['GHIA_CONFIG'].split(':')
     except:
@@ -337,6 +338,7 @@ def get_user_by_token():
 
 def verify_signature(req):
     secret = get_rules_from_config('github').get('secret')
+    # If no issue is specified we accept the webhook
     if secret == None:
         return True
 
@@ -357,12 +359,16 @@ def verify_signature(req):
 
 @app.route('/', methods=['POST'])
 def webhook():
+    # Accept only POST method and webhooks ping or issues
     if request.method == 'POST' and ( request.headers.get('X-GitHub-Event') == 'ping' or request.headers.get('X-GitHub-Event') == 'issues' ):
+        # Signature must be same
         if not verify_signature(request):
             return 'Invalid signature!', 400
         if request.headers.get('X-GitHub-Event') == 'issues':
             available_actions = ['opened', 'edited', 'transferred', 'reopened', 'assigned', 'unassigned', 'labeled', 'unlabeled']
+            # Accept only some actions 
             if request.json.get('action') in available_actions:
+                # Setup session and authorize
                 session = requests.Session()
                 session.headers = {'User-Agent': 'Python'}
 
@@ -371,22 +377,19 @@ def webhook():
                     req.headers['Authorization'] = f'token {token}'
                     return req
                 session.auth = token_auth
-                
-                rules = get_rules_from_config()
 
                 reposlug = request.json.get('repository').get('full_name')
                 issue_number = request.json.get('issue').get('number')
                 issue_url = request.json.get('issue').get('url')
-
-                click.echo('-> {} ({})'.format(click.style(reposlug + '#' + str(issue_number), bold=True, fg='white'), issue_url))
-
                 r = session.get(issue_url)
 
                 if not r.ok:
                     click.echo('{}: Could not list issues for repository {}'.format(click.style('ERROR', fg='red'), reposlug), file=sys.stderr)
                     sys.exit(10)
 
-                assign_issue(r.json(), rules, 'append_from_webhook', '', session, reposlug)
+                # proccess the issue
+                click.echo('-> {} ({})'.format(click.style(reposlug + '#' + str(issue_number), bold=True, fg='white'), issue_url))
+                assign_issue(r.json(), get_rules_from_config(), 'append_from_webhook', '', session, reposlug)
 
         return '', 200
     else:
@@ -394,6 +397,7 @@ def webhook():
 
 @app.route('/')
 def index():
+    # get name and rules from config file and pass them to the template
     name = get_user_by_token()
     paterns = get_rules_from_config('patterns')
     fallback = get_rules_from_config('fallback')
