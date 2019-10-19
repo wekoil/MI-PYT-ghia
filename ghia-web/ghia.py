@@ -76,13 +76,13 @@ def run(strategy, dry, auth, rules, reposlug):
     for issue in issues:
         click.echo('-> {} ({})'.format(click.style(reposlug + '#' + str(issue.get('number')), bold=True, fg='white'), issue.get('html_url')))
         assign_issue(issue, rules, strategy, dry, session, reposlug)
-    
+
 
 def print_users(strategy, new_users, old_users):
     """Print old and new assignees depending on chosen strategy"""
 
     all_users = list(set([*new_users, *old_users]))
-    
+
     if (strategy == 'append'):
         for user in sorted(all_users, key=str.casefold):
             if (user in old_users and user in new_users):
@@ -106,7 +106,7 @@ def print_users(strategy, new_users, old_users):
             for user in sorted(list(set([*new_users]))):
                 click.echo('   {} {}'.format(click.style('+', bold=True, fg='green'), user))
             return
-        
+
     if (strategy == 'change'):
         for user in sorted(all_users, key=str.casefold):
             if (user in old_users and user in new_users):
@@ -141,7 +141,7 @@ def set_users(issue, dry, session, new_users, old_users, reposlug):
         click.echo('   {}: Could not update issue {}#{}'.format(click.style('ERROR', fg='red'), reposlug, issue.get('number')), file=sys.stderr)
     else:
         print_users('set', new_users, [])
-    
+
 
 def change_users(issue, dry, session, new_users, old_users, reposlug):
     """Changes all assignees to the new ones"""
@@ -172,7 +172,7 @@ def assign_issue(issue, rules, strategy, dry, session, reposlug):
                     for label in issue.get('labels'):
                         if re.search(rule.split(':', 1)[-1].lower(), label['name'].lower()):
                             new_users.append(user)
-                        
+
 
                 if issue.get('body') is not None:
                     if re.search(rule.split(':', 1)[-1].lower(), issue.get('body').lower()):
@@ -193,7 +193,7 @@ def assign_issue(issue, rules, strategy, dry, session, reposlug):
                 if issue.get('body') is not None:
                     if re.search(rule.split(':', 1)[-1].lower(), issue.get('body').lower()):
                         new_users.append(user)
-                            
+
     # changing assignees
     if (strategy == 'change'):
         change_users(issue, dry, session, new_users, old_users, reposlug)
@@ -206,7 +206,7 @@ def assign_issue(issue, rules, strategy, dry, session, reposlug):
         append_users(issue, dry, session, new_users, old_users, reposlug)
         if (len(new_users) > 0):
             return
-        
+
     users = []
     for i in issue.get('assignees'):
         users.append(i['login'])
@@ -264,7 +264,7 @@ def get_issues(reposlug, session):
         sys.exit(10)
 
     issues = r.json()
-    
+
     while(r.links.get('next')):
         next = r.links["next"]["url"]
         r = session.get(next)
@@ -274,7 +274,7 @@ def get_issues(reposlug, session):
             sys.exit(10)
 
     return issues
-    
+
 ##############################################################################################
     # Flask webserver below
 
@@ -288,7 +288,7 @@ def load_config_files():
         except KeyError:
             raise RuntimeError('You must set GHIA_CONFIG environ var')
     return conf_files
-    
+
 
 def get_rules_from_config(value = None):
     config = configparser.ConfigParser()
@@ -366,7 +366,8 @@ def webhook():
             return 'Invalid signature!', 400
         if request.headers.get('X-GitHub-Event') == 'issues':
             available_actions = ['opened', 'edited', 'transferred', 'reopened', 'assigned', 'unassigned', 'labeled', 'unlabeled']
-            # Accept only some actions 
+            # Accept only some actions
+            print(request.json.get('action'))
             if request.json.get('action') in available_actions:
                 # Setup session and authorize
                 session = requests.Session()
@@ -386,6 +387,9 @@ def webhook():
                 if not r.ok:
                     click.echo('{}: Could not list issues for repository {}'.format(click.style('ERROR', fg='red'), reposlug), file=sys.stderr)
                     sys.exit(10)
+
+                if r.json().get('state') == 'closed':
+                    return '', 200
 
                 # proccess the issue
                 click.echo('-> {} ({})'.format(click.style(reposlug + '#' + str(issue_number), bold=True, fg='white'), issue_url))
