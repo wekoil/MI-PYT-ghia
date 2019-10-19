@@ -201,6 +201,11 @@ def assign_issue(issue, rules, strategy, dry, session, reposlug):
         set_users(issue, dry, session, new_users, old_users, reposlug)
     if (strategy == 'append'):
         append_users(issue, dry, session, new_users, old_users, reposlug)
+
+    if (strategy == 'append_from_webhook'):
+        append_users(issue, dry, session, new_users, old_users, reposlug)
+        if (len(new_users) > 0):
+            return
         
     users = []
     for i in issue.get('assignees'):
@@ -381,7 +386,7 @@ def webhook():
                     click.echo('{}: Could not list issues for repository {}'.format(click.style('ERROR', fg='red'), reposlug), file=sys.stderr)
                     sys.exit(10)
 
-                assign_issue(r.json(), rules, 'append', '', session, reposlug)
+                assign_issue(r.json(), rules, 'append_from_webhook', '', session, reposlug)
 
         return '', 200
     else:
