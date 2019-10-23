@@ -1,0 +1,1 @@
+Data can be downloaded from: https://www.policie.cz/clanek/statistika-nehodovosti-900835.aspx?q=Y2hudW09Mg%3d%3d
