@@ -27,8 +27,7 @@ class GitHub:
         r = self.session.get('https://api.github.com/repos/{}/{}/issues'.format(owner, repository))
 
         if not r.ok:
-            click.echo('{}: Could not list issues for repository {}'.format(click.style('ERROR', fg='red'), reposlug), file=sys.stderr)
-            sys.exit(10)
+            Cli.can_not_list_issues(reposlug)
 
         issues = r.json()
 
@@ -37,8 +36,7 @@ class GitHub:
             r = self.session.get(next)
             issues += r.json()
             if not r.ok:
-                click.echo('{}: Could not list issues for repository {}'.format(click.style('ERROR', fg='red'), reposlug), file=sys.stderr)
-                sys.exit(10)
+                Cli.can_not_list_issues(reposlug)
 
         return issues
 
@@ -116,82 +114,105 @@ def run(strategy, dry, auth, rules, reposlug):
 
     # process all issues
     for issue in issues:
-        click.echo('-> {} ({})'.format(click.style(reposlug + '#' + str(issue.get('number')), bold=True, fg='white'), issue.get('html_url')))
+        Cli.print_issue(reposlug, str(issue.get('number')), issue.get('html_url'))
         assign_issue(issue, rules, strategy, dry, gh, reposlug)
+    sys.exit(0)
 
 
-def print_users(strategy, new_users, old_users):
-    """Print old and new assignees depending on chosen strategy"""
+class Cli():
+    @staticmethod
+    def print_users(strategy, new_users, old_users):
+        """Print old and new assignees depending on chosen strategy"""
 
-    all_users = list(set([*new_users, *old_users]))
+        all_users = list(set([*new_users, *old_users]))
 
-    if (strategy == 'append'):
-        for user in sorted(all_users, key=str.casefold):
-            if (user in old_users and user in new_users):
-                click.echo('   {} {}'.format(click.style('=', bold=True, fg='blue'), user))
-                continue
-            if (user in old_users):
-                click.echo('   {} {}'.format(click.style('=', bold=True, fg='blue'), user))
-                continue
-            if (user in new_users):
-                click.echo('   {} {}'.format(click.style('+', bold=True, fg='green'), user))
-                continue
-        return
+        if (strategy == 'append'):
+            for user in sorted(all_users, key=str.casefold):
+                if (user in old_users and user in new_users):
+                    click.echo('   {} {}'.format(click.style('=', bold=True, fg='blue'), user))
+                    continue
+                if (user in old_users):
+                    click.echo('   {} {}'.format(click.style('=', bold=True, fg='blue'), user))
+                    continue
+                if (user in new_users):
+                    click.echo('   {} {}'.format(click.style('+', bold=True, fg='green'), user))
+                    continue
+            return
 
-    if (strategy == 'set'):
+        if (strategy == 'set'):
+            if (len(old_users) > 0):
+                for user in sorted(list(set([*old_users]))):
+                    click.echo('   {} {}'.format(click.style('=', bold=True, fg='blue'), user))
+                return
+
+            if (len(new_users) > 0):
+                for user in sorted(list(set([*new_users]))):
+                    click.echo('   {} {}'.format(click.style('+', bold=True, fg='green'), user))
+                return
+
+        if (strategy == 'change'):
+            for user in sorted(all_users, key=str.casefold):
+                if (user in old_users and user in new_users):
+                    click.echo('   {} {}'.format(click.style('=', bold=True, fg='blue'), user))
+                    continue
+                if (user in old_users):
+                    click.echo('   {} {}'.format(click.style('-', bold=True, fg='red'), user))
+                    continue
+                if (user in new_users):
+                    click.echo('   {} {}'.format(click.style('+', bold=True, fg='green'), user))
+                    continue
+            return
+
+    @staticmethod
+    def append_users(issue, dry, gh, new_users, old_users, reposlug):
+        """Add new assignees to the old ones"""
+
+        if not dry and len(new_users) > 0 and not gh.set_assignees(issue, new_users, old_users):
+            click.echo('   {}: Could not update issue {}#{}'.format(click.style('ERROR', fg='red'), reposlug, issue.get('number')), file=sys.stderr)
+        else:
+            Cli.print_users('append', new_users, old_users)
+
+    @staticmethod
+    def set_users(issue, dry, gh, new_users, old_users, reposlug):
+        """Sets new assignees if the assignees are empty"""
+
         if (len(old_users) > 0):
-            for user in sorted(list(set([*old_users]))):
-                click.echo('   {} {}'.format(click.style('=', bold=True, fg='blue'), user))
+            Cli.print_users('set', [], old_users)
             return
 
-        if (len(new_users) > 0):
-            for user in sorted(list(set([*new_users]))):
-                click.echo('   {} {}'.format(click.style('+', bold=True, fg='green'), user))
-            return
+        if not dry and len(new_users) > 0 and not gh.set_assignees(issue, new_users):
+            click.echo('   {}: Could not update issue {}#{}'.format(click.style('ERROR', fg='red'), reposlug, issue.get('number')), file=sys.stderr)
+        else:
+            Cli.print_users('set', new_users, [])
 
-    if (strategy == 'change'):
-        for user in sorted(all_users, key=str.casefold):
-            if (user in old_users and user in new_users):
-                click.echo('   {} {}'.format(click.style('=', bold=True, fg='blue'), user))
-                continue
-            if (user in old_users):
-                click.echo('   {} {}'.format(click.style('-', bold=True, fg='red'), user))
-                continue
-            if (user in new_users):
-                click.echo('   {} {}'.format(click.style('+', bold=True, fg='green'), user))
-                continue
-        return
+    @staticmethod
+    def change_users(issue, dry, gh, new_users, old_users, reposlug):
+        """Changes all assignees to the new ones"""
 
+        if not dry and new_users != old_users and not gh.set_assignees(issue, new_users):
+            click.echo('   {}: Could not update issue {}#{}'.format(click.style('ERROR', fg='red'), reposlug, issue.get('number')), file=sys.stderr)
+        else:
+            Cli.print_users('change', new_users, old_users)
 
-def append_users(issue, dry, gh, new_users, old_users, reposlug):
-    """Add new assignees to the old ones"""
+    @staticmethod
+    def add_label(failed, label):
+        if failed:
+            click.echo('   {}: already has label "{}"'.format(click.style('FALLBACK', bold=True, fg='yellow'), label))
+        else:
+            click.echo('   {}: added label "{}"'.format(click.style('FALLBACK', bold=True, fg='yellow'), label))
 
-    if not dry and len(new_users) > 0 and not gh.set_assignees(issue, new_users, old_users):
-        click.echo('   {}: Could not update issue {}#{}'.format(click.style('ERROR', fg='red'), reposlug, issue.get('number')), file=sys.stderr)
-    else:
-        print_users('append', new_users, old_users)
+    @staticmethod
+    def can_not_list_issues(reposlug):
+        click.echo('{}: Could not list issues for repository {}'.format(click.style('ERROR', fg='red'), reposlug), file=sys.stderr)
+        sys.exit(10)
 
+    @staticmethod
+    def print_issue(reposlug, issue_number, issue_url):
+        click.echo('-> {} ({})'.format(click.style(reposlug + '#' + str(issue_number), bold=True, fg='white'), issue_url))
 
-def set_users(issue, dry, gh, new_users, old_users, reposlug):
-    """Sets new assignees if the assignees are empty"""
-
-    if (len(old_users) > 0):
-        print_users('set', [], old_users)
-        return
-
-    if not dry and len(new_users) > 0 and not gh.set_assignees(issue, new_users):
-        click.echo('   {}: Could not update issue {}#{}'.format(click.style('ERROR', fg='red'), reposlug, issue.get('number')), file=sys.stderr)
-    else:
-        print_users('set', new_users, [])
-
-
-def change_users(issue, dry, gh, new_users, old_users, reposlug):
-    """Changes all assignees to the new ones"""
-
-    if not dry and new_users != old_users and not gh.set_assignees(issue, new_users):
-        click.echo('   {}: Could not update issue {}#{}'.format(click.style('ERROR', fg='red'), reposlug, issue.get('number')), file=sys.stderr)
-    else:
-        print_users('change', new_users, old_users)
+    @staticmethod
+    def can_not_update_issue(reposlug, number):
+        click.echo('{} Could not update issue {}#{}'.format(click.style('ERROR', fg='red'), reposlug, number), file=sys.stderr)
 
 
 def assign_issue(issue, rules, strategy, dry, gh, reposlug):
@@ -238,14 +259,14 @@ def assign_issue(issue, rules, strategy, dry, gh, reposlug):
 
     # changing assignees
     if (strategy == 'change'):
-        change_users(issue, dry, gh, new_users, old_users, reposlug)
+        Cli.change_users(issue, dry, gh, new_users, old_users, reposlug)
     if (strategy == 'set'):
-        set_users(issue, dry, gh, new_users, old_users, reposlug)
+        Cli.set_users(issue, dry, gh, new_users, old_users, reposlug)
     if (strategy == 'append'):
-        append_users(issue, dry, gh, new_users, old_users, reposlug)
+        Cli.append_users(issue, dry, gh, new_users, old_users, reposlug)
 
     if (strategy == 'append_from_webhook'):
-        append_users(issue, dry, gh, new_users, old_users, reposlug)
+        Cli.append_users(issue, dry, gh, new_users, old_users, reposlug)
         if (len(new_users) > 0):
             return
 
@@ -268,7 +289,7 @@ def assign_issue(issue, rules, strategy, dry, gh, reposlug):
             if not dry:
                 r = gh.set_labels(issue, new_labels, old_labels)
                 if not r.ok:
-                    click.echo('{} Could not update issue {}#{}'.format(click.style('ERROR', fg='red'), reposlug, issue.get('number')), file=sys.stderr)
+                    Cli.can_not_update_issue(reposlug, issue.get('number'))
                 else:
                     for label in new_labels:
                         label_flag = False
@@ -277,10 +298,7 @@ def assign_issue(issue, rules, strategy, dry, gh, reposlug):
                                 label_flag = True
                                 break
 
-                        if label_flag:
-                            click.echo('   {}: already has label "{}"'.format(click.style('FALLBACK', bold=True, fg='yellow'), label))
-                        else:
-                            click.echo('   {}: added label "{}"'.format(click.style('FALLBACK', bold=True, fg='yellow'), label))
+                        Cli.add_label(label_flag, label)
             else:
                 for label in new_labels:
                     label_flag = False
@@ -289,10 +307,7 @@ def assign_issue(issue, rules, strategy, dry, gh, reposlug):
                             label_flag = True
                             break
 
-                    if label_flag:
-                        click.echo('   {}: already has label "{}"'.format(click.style('FALLBACK', bold=True, fg='yellow'), label))
-                    else:
-                        click.echo('   {}: added label "{}"'.format(click.style('FALLBACK', bold=True, fg='yellow'), label))
+                    Cli.add_label(label_flag, label)
 
 
 class Web():
@@ -383,14 +398,13 @@ def webhook():
                 r = gh.issue(issue_url)
 
                 if not r.ok:
-                    click.echo('{}: Could not list issues for repository {}'.format(click.style('ERROR', fg='red'), reposlug), file=sys.stderr)
-                    sys.exit(10)
+                    Cli.can_not_list_issues(reposlug)
 
                 if r.json().get('state') == 'closed':
                     return '', 200
 
                 # proccess the issue
-                click.echo('-> {} ({})'.format(click.style(reposlug + '#' + str(issue_number), bold=True, fg='white'), issue_url))
+                Cli.print_issue(reposlug, issue_number, issue_url)
                 assign_issue(r.json(), Web.get_rules_from_config(), 'append_from_webhook', '', session, reposlug)
 
         return '', 200
