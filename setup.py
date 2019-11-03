@@ -14,7 +14,7 @@ setup(
     license='MIT',
     url='https://github.com/wekoil/MI-PYT-ghia',
     packages=['ghia'],
-    package_data={'ghia': ['ghia/templates/*']},
+    package_data={'ghia': ['templates/*']},
     include_package_data=True,
     classifiers=[
         'Intended Audience :: Developers',
