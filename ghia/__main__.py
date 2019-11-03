@@ -1,3 +1,3 @@
-from .ghia import main
+from .cli import main
 
 main()

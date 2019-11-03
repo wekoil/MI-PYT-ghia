@@ -14,7 +14,7 @@ setup(
     license='MIT',
     url='https://github.com/wekoil/MI-PYT-ghia',
     packages=['ghia'],
-    package_data={'ghia': ['templates/*']},
+    package_data={'ghia': ['ghia/templates/*']},
     include_package_data=True,
     classifiers=[
         'Intended Audience :: Developers',
@@ -28,5 +28,5 @@ setup(
         ],
     zip_safe=False,
     install_requires=['requests', 'click>=6', 'Flask', 'configparser'],
-    entry_points={'console_scripts': ['ghia = ghia.ghia:main', ], },
+    entry_points={'console_scripts': ['ghia = ghia.cli:main', ], },
 )
