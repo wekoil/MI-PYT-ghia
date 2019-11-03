@@ -40,6 +40,7 @@ class Utils:
 
     @property
     def create_venv(self):
+        print(self.cfg['commands']['create_venv'])
         return self.cfg['commands']['create_venv']
 
     @property

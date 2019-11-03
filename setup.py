@@ -1,10 +1,10 @@
 from setuptools import setup
 
-with open('README.adoc') as f:
+with open('README') as f:
     long_description = ''.join(f.readlines())
 
 setup(
-    name='ghia_wekoil',
+    name='ghia_michaj24',
     version='0.3',
     description='GitHub issue auto assigner',
     long_description=long_description,
@@ -14,6 +14,8 @@ setup(
     license='MIT',
     url='https://github.com/wekoil/MI-PYT-ghia',
     packages=['ghia'],
+    package_data={'ghia': ['templates/*']},
+    include_package_data=True,
     classifiers=[
         'Intended Audience :: Developers',
         'Intended Audience :: Education',
@@ -25,4 +27,6 @@ setup(
         'Topic :: Software Development :: Libraries :: Python Modules',
         ],
     zip_safe=False,
+    install_requires=['requests', 'click>=6', 'Flask', 'configparser'],
+    entry_points={'console_scripts': ['ghia = ghia.ghia:main', ], },
 )
