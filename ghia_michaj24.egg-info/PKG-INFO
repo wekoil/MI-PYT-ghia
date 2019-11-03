@@ -1,0 +1,22 @@
+Metadata-Version: 1.1
+Name: ghia-michaj24
+Version: 0.3
+Summary: GitHub issue auto assigner
+Home-page: https://github.com/wekoil/MI-PYT-ghia
+Author: Jan Michal
+Author-email: michaj24@fit.cvut.cz
+License: MIT
+Description: Github issue auto assigner tool
+Keywords: github,issue,assigner,automation
+Platform: UNKNOWN
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: Education
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: POSIX :: Linux
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Classifier: Framework :: Flask
+Classifier: Environment :: Console
+Classifier: Environment :: Web Environment
