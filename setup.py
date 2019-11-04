@@ -5,7 +5,7 @@ with open('README') as f:
 
 setup(
     name='ghia_michaj24',
-    version='0.3.1',
+    version='0.3.2',
     description='GitHub issue auto assigner',
     long_description=long_description,
     author='Jan Michal',
