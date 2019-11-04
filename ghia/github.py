@@ -8,7 +8,7 @@ class GitHub:
         self.session.auth = self.token_auth
 
     def token_auth(self, req):
-        req.headers['Authorization'] = f'token {self.token}'
+        req.headers['Authorization'] = 'token ' + self.token
         return req
 
     def get_issues(self, reposlug):
