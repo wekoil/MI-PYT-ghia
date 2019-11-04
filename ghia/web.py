@@ -117,7 +117,7 @@ def index():
     name = gh.get_user_by_token()
     paterns = Web.get_rules_from_config('patterns')
     fallback = Web.get_rules_from_config('fallback')
-    return render_template('index.html', name=name, rules=paterns, fallback=fallback)
+    return render_template('index.html.j2', name=name, rules=paterns, fallback=fallback)
 
 def create_app(*args, **kwargs):
     app = flask.Flask(__name__)
