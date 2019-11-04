@@ -42,6 +42,8 @@ def test_install(utils, config, tmpdir, sh, channel):
 
     # Run with entrypoint
     result = sh(utils.ghia_entrypoint, '--help')
+    print('STDERR: ', result.stderr)
+    print('STDOUT: ', result.stdout)
     assert result.was_successful, \
         'Invoking help via entrypoint failed'
 

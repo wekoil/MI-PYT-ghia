@@ -56,7 +56,8 @@ def run(strategy, dry, auth, rules, reposlug):
     """CLI tool for automatic issue assigning of GitHub issues"""
 
     # setup session
-    gh = GitHub(auth['github']['token'])
+    gh = GitHub
+    gh.init(auth['github']['token'])
 
     issues = gh.get_issues(reposlug)
 

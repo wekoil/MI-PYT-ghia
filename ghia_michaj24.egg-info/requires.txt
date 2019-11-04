@@ -1,4 +1,0 @@
-requests
-click>=6
-Flask
-configparser

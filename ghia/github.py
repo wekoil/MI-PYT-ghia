@@ -1,7 +1,7 @@
 import requests
 
 class GitHub:
-    def __init__(self, token, session=None):
+    def init(self, token, session=None):
         self.token = token
         self.session = session or requests.Session()
         self.session.headers = {'User-Agent': 'Python'}
