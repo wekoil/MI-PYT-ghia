@@ -88,8 +88,7 @@ def webhook():
             print(request.json.get('action'))
             if request.json.get('action') in available_actions:
                 # Setup session and authorize
-                gh = GitHub
-                gh.init(Web.get_token_from_config())
+                gh = GitHub(Web.get_token_from_config())
 
                 reposlug = request.json.get('repository').get('full_name')
                 issue_number = request.json.get('issue').get('number')
@@ -114,8 +113,7 @@ def webhook():
 @ghia_blueprint.route('/')
 def index():
     # get name and rules from config file and pass them to the template
-    gh = GitHub
-    gh.init(Web.get_token_from_config())
+    gh = GitHub(Web.get_token_from_config())
     name = gh.get_user_by_token()
     paterns = Web.get_rules_from_config('patterns')
     fallback = Web.get_rules_from_config('fallback')

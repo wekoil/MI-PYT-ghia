@@ -1,14 +1,14 @@
 import requests
 
 class GitHub:
-    def init(self, token, session=None):
+    def __init__(self, token, session=None):
         self.token = token
         self.session = session or requests.Session()
         self.session.headers = {'User-Agent': 'Python'}
         self.session.auth = self.token_auth
 
     def token_auth(self, req):
-        req.headers['Authorization'] = 'token ' + self.token
+        req.headers['Authorization'] = f'token {self.token}'
         return req
 
     def get_issues(self, reposlug):
