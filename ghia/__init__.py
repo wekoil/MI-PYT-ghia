@@ -1,4 +1,4 @@
 from .web import create_app
-from .cli import main
+from .cli import run
 
-__all__ = ['main', 'create_app']
+__all__ = ['run', 'create_app']
