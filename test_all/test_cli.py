@@ -108,7 +108,7 @@ with betamax.Betamax.configure() as config:
     config.define_cassette_placeholder('<TOKEN>', TOKEN)
 
 try:
-	user = os.environ['GITHUB_USER']
+	user = 'wekoil'
 	repo = f'mi-pyt-ghia/{user}'
 except KeyError:
 	raise RuntimeError('You must set GITHUB_USER environ var')
