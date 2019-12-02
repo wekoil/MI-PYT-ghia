@@ -36,7 +36,7 @@ def test_get_token_from_config(capsys):
 	assert not cp.err
 
 
-def test_verify_signature(capsys, requests_mock):
+def test_verify_signature(capsys):
 	assert Web.verify_signature('')
 
 	os.environ['GHIA_CONFIG'] = 'secret.cfg'
