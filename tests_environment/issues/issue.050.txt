@@ -1,3 +1,0 @@
-IP cannot be resolved
-
-When I enter required hostname, the error "IP cannot be resolved with DNS" appears. Probably something is wrong with my Network Settings? :cry:

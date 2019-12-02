@@ -1,3 +1,0 @@
-Network protocol broken
-
-The TCP communication is not working at all, when switched to UDP, it works great but is not optimal.

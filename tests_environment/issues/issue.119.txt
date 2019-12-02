@@ -1,3 +1,0 @@
-Organization is not user
-
-Obviously GitHub organization is not a user and cannot be assigned to any issue.

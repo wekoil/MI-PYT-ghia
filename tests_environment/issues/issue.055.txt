@@ -1,3 +1,0 @@
-MySQL database support
-
-Which versions of MySQL and MariaDB are supported? I am encountering some weird problems...

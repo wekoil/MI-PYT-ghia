@@ -1,8 +1,7 @@
 from ghia import cli
 from ghia.cli import Cli
 import pytest
-import sys
-import shlex
+import os
 
 
 def test_cli_conf_file(capsys):
@@ -17,72 +16,46 @@ def test_cli_conf_file(capsys):
 	cp = capsys.readouterr()
 	assert not cp.err
 
-# @pytest.mark.parametrize('foo', ("cli.validate_auth", "cli.validate_rules"))
-def test_validate_auth():
-	try:
-		cli.validate_auth("ctx", "param", "rules.cfg")
-	except:
-		assert 0
-	else:
-		assert 1
 
-	try:
+def test_validate_auth(capsys):
+	cli.validate_auth("ctx", "param", "rules.cfg")
+	cp = capsys.readouterr()
+	assert not cp.err
+
+	with pytest.raises(Exception) as excinfo:  
 		cli.validate_auth("ctx", "param", "")
-	except:
-		assert 1
-	else:
-		assert 0
+	cp = capsys.readouterr()
+	assert not cp.out
+	assert 'incorrect configuration format' in str(excinfo.value)
 
-def test_validate_rules():
-	try:
-		cli.validate_rules("ctx", "param", "rules.cfg")
-	except:
-		assert 0
-	else:
-		assert 1
 
-	try:
+def test_validate_rules(capsys):
+	cli.validate_rules("ctx", "param", "rules.cfg")
+	cp = capsys.readouterr()
+	assert not cp.err
+
+
+	with pytest.raises(Exception) as excinfo:  
 		cli.validate_rules("ctx", "param", "")
-	except:
-		assert 1
-	else:
-		assert 0
+	cp = capsys.readouterr()
+	assert not cp.out
+	assert 'incorrect configuration format' in str(excinfo.value)
 
-def test_validate_reposlug():
-	try:
-		cli.validate_reposlug("ctx", "param", "username/repo")
-	except:
-		assert 0
-	else:
-		assert 1
+def test_validate_reposlug(capsys):
+	cli.validate_reposlug("ctx", "param", "username/repo")
+	cp = capsys.readouterr()
+	assert not cp.err
 
-	try:
+	with pytest.raises(Exception) as excinfo:  
 		cli.validate_reposlug("ctx", "param", "")
-	except:
-		assert 1
-	else:
-		assert 0
+	cp = capsys.readouterr()
+	assert not cp.out
 
-	try:
+	with pytest.raises(Exception) as excinfo:  
 		cli.validate_reposlug("ctx", "param", "reposlug")
-	except:
-		assert 1
-	else:
-		assert 0
+	cp = capsys.readouterr()
+	assert not cp.out
 
-# def test_run():
-
-
-
-	# ('append', 'set', 'change')
-# 	
-# @pytest.mark.parametrize('new_users', ('lion', ['cat', 'bear']))
-# @pytest.mark.parametrize('old_users', ('octocat', 'cat', ['dog', 'rafan']))
-
-
-# @pytest.mark.parametrize('strategy', ('append', 'set', 'change'))
-# @pytest.mark.parametrize('new_users', ('lion', ['cat', 'bear']))
-# @pytest.mark.parametrize('old_users', ('octocat', 'cat', ['dog', 'rafan']))
 
 @pytest.mark.parametrize(
 	['strategy', 'new_users', 'old_users'],
@@ -121,14 +94,83 @@ def test_print_users(capsys, strategy, new_users, old_users):
 			if not user in new_users:
 				assert '- {}'.format(user) in captured.out
 
-# # here we test only dry functionality coz we will test set_assignees in github tests
-# def test_append_users():
-# 	cli.append_users(issue, dry, gh, new_users, old_users, reposlug)
+from ghia.github import GitHub
+import betamax
 
-# from ghia.github import GitHub
+with betamax.Betamax.configure() as config:
+    # tell Betamax where to find the cassettes
+    # make sure to create the directory
+    config.cassette_library_dir = 'test_all/fixtures/cassettes'
 
-# class GHConnection:
-# 	def __init__(self, token):
-# 		gh = GitHub(token)
+    auth = cli.validate_auth("ctx", "param", "credentials.cfg")
+    TOKEN = auth['github']['token']
 
-# @pytest.fixture
+    config.define_cassette_placeholder('<TOKEN>', TOKEN)
+
+try:
+	user = os.environ['GITHUB_USER']
+	repo = f'mi-pyt-ghia/{user}'
+except KeyError:
+	raise RuntimeError('You must set GITHUB_USER environ var')
+
+@pytest.fixture
+def connection(betamax_session):
+	return GitHub(TOKEN, session = betamax_session)
+
+@pytest.fixture
+def issue(connection):
+	r = connection.issue('https://api.github.com/repos/mi-pyt-ghia/wekoil/issues/120')
+	return r.json()
+
+@pytest.fixture
+def label_issue(connection):
+	r = connection.issue('https://api.github.com/repos/mi-pyt-ghia/wekoil/issues/119')
+	return r.json()
+
+def test_append_users(issue, connection, capsys):
+	Cli.append_users(issue, True, connection, [user], [], repo)
+	captured = capsys.readouterr()
+	assert user in captured.out
+	assert '+' in captured.out or '=' in captured.out
+
+	Cli.append_users(issue, False, connection, [user], [], repo)
+	captured = capsys.readouterr()
+	assert user in captured.out
+	assert '+' in captured.out or '=' in captured.out
+
+def test_change_users(issue, connection, capsys):
+	Cli.change_users(issue, False, connection, [], [user], repo)
+	captured = capsys.readouterr()
+	assert user in captured.out
+	assert '-' in captured.out
+
+	Cli.set_users(issue, False, connection, [user], [], repo)
+	captured = capsys.readouterr()
+	assert user in captured.out
+	assert '+' in captured.out
+
+	Cli.set_users(issue, False, connection, [user], [user], repo)
+	captured = capsys.readouterr()
+	assert user in captured.out
+	assert '=' in captured.out
+
+def test_set_users(issue, connection, capsys):
+	Cli.set_users(issue, False, connection, [user], [user], repo)
+	captured = capsys.readouterr()
+	assert user in captured.out
+	assert '=' in captured.out
+
+	Cli.set_users(issue, False, connection, [user], [], repo)
+	captured = capsys.readouterr()
+	assert user in captured.out
+	assert '+' in captured.out
+
+def test_assign_issue(label_issue, issue, connection, capsys):
+	cli.assign_issue(issue, cli.validate_rules("ctx", "param", "rules.cfg"), 'append', False, connection, 'mi-pyt-ghia/wekoil')
+	captured = capsys.readouterr()
+	assert user in captured.out
+	assert '=' in captured.out
+
+	cli.assign_issue(label_issue, cli.validate_rules("ctx", "param", "rules.cfg"), 'append', True, connection, 'mi-pyt-ghia/wekoil')
+	captured = capsys.readouterr()
+	assert 'FALLBACK: added label "Need assignment"' in captured.out

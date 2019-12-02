@@ -1,3 +1,0 @@
-Translate to chinese
-
-We need someone to translate using I18N our work to chinese so they can use it in China.

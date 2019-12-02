@@ -4,6 +4,8 @@ with open('README') as f:
     long_description = ''.join(f.readlines())
 
 setup(
+    setup_requires=['pytest-runner', ],
+    tests_require=['pytest', 'flexmock', 'betamax', 'requests'],
     name='ghia_michaj24',
     version='0.3.2',
     description='GitHub issue auto assigner',
