@@ -1,6 +1,9 @@
 Github issue auto assigner tool
 ###############################
 
+.. image:: https://travis-ci.com/wekoil/MI-PYT-ghia.svg?branch=master
+    :target: https://travis-ci.com/wekoil/MI-PYT-ghia
+    
 GHIA is python package which can be used to auto assign issues on GitHub. It has CLI mode and web mode.
 
 Installation
