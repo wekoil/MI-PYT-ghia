@@ -46,7 +46,7 @@ To start web mode you need to specify where is flask file located
 Documentation
 -------------
 
-* `Online <https://mi-pyt-ghia.readthedocs.io/en/latest/?>`
+* `Online <https://mi-pyt-ghia.readthedocs.io/en/latest/?>`_
 
 Go to the ``docs`` dir and build html documentation.
 
