@@ -1,7 +1,7 @@
 alabaster==0.7.12
 atomicwrites==1.3.0
 attrs==19.3.0
-Babel==2.7.0
+Babel==2.9.1
 betamax==0.8.1
 bleach
 certifi==2019.9.11
@@ -37,7 +37,7 @@ requests-toolbelt==0.9.1
 responses==0.10.7
 six==1.12.0
 snowballstemmer==2.0.0
-Sphinx==2.2.2
+Sphinx==3.0.4
 sphinxcontrib-applehelp==1.0.1
 sphinxcontrib-devhelp==1.0.1
 sphinxcontrib-htmlhelp==1.0.2
