@@ -13,7 +13,7 @@ docutils==0.15.2
 Flask==1.1.1
 flexmock==0.10.4
 gprof2dot==2017.9.19
-idna==2.8
+idna==3.7
 imagesize==1.1.0
 importlib-metadata==0.23
 itsdangerous==1.1.0
